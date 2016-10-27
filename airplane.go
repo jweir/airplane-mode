@@ -6,6 +6,8 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"os/user"
+	"path"
 )
 
 // host file names
@@ -47,30 +49,62 @@ func write(hosts []byte) {
 // TODO
 func setup() {}
 
+type setting struct {
+	hosts hosts
+	desc  string
+}
+
+var settings = map[string]setting{
+	"on":          setting{on, "Have a safe flight."},
+	"off":         setting{off, "Please clean up after yourself."},
+	"shieldsdown": setting{shieldsdown, "Commander are you crazy?!"},
+}
+
+func xinit() {
+	u, err := user.Current()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	home := path.Join(u.HomeDir, ".airplane-mode")
+
+	fmt.Println(home)
+
+	if _, err := os.Stat(home); os.IsNotExist(err) {
+		fmt.Printf(`
+Now creating the airplane-mode home directory: %s
+
+In this directory will be 3 files:
+
+system   - The base host file that will always be present.
+           Your existing /etc/hosts will be copied to this file now.
+privacy  - A hosts file of services to block such as advertising and tracking.
+           For example https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts
+services - Hosts that you want to block when airplane-mode is 'on'.
+           These likely include services like Twitter, Facebook, etc.
+
+		`, home)
+	}
+
+}
+
 func main() {
 	mode := "on"
 
 	if len(os.Args) == 1 {
-		fmt.Printf("Defaulting to 'on'. Options:\non\noff\nshieldsdown # let in everything\n\n")
+		fmt.Printf("Defaulting to 'on'.\nOptions:\n> on\n> off\n> shieldsdown # let in everything\n\n")
 	} else {
 		mode = os.Args[1]
 	}
 
-	fmt.Printf("Switching to %s\n", mode)
-	var set hosts
-	switch mode {
-	case "on":
-		set = on
-	case "off":
-		set = off
-	case "shieldsdown":
-		set = shieldsdown
-	default:
-		set = on
+	set, ok := settings[mode]
+
+	if ok == false {
+		fmt.Print("This flight can not take off.  Please give us a command.")
 	}
 
-	enable(set)
-	fmt.Printf("Using %v\n", set)
+	enable(set.hosts)
+	fmt.Printf("%s\n", set.desc)
 
 	// TODO detect if this is macOS or not
 	exec.Command("/usr/bin/killall", "-HUP mDNSResponder").Output()
