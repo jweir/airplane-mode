@@ -22,7 +22,7 @@ var off = append(shieldsdown, "privacy")
 // block the services
 var on = append(off, "services")
 
-func enable(set hosts) {
+func enable(set hosts) error {
 	data := []byte{}
 
 	for _, name := range set {
@@ -34,15 +34,16 @@ func enable(set hosts) {
 		data = append(data, body...)
 	}
 
-	write(data)
+	return write(data)
 }
 
 // writes out the hosts file
-func write(hosts []byte) {
+func write(hosts []byte) error {
 	err := ioutil.WriteFile("/etc/hosts", hosts, 0644)
 	if err != nil {
-		fmt.Printf("Error %s\n", err)
+		fmt.Printf("Error %s\nDid you run with 'sudo'?\n", err)
 	}
+	return err
 }
 
 // ensures the necessary files exist
@@ -103,7 +104,10 @@ func main() {
 		fmt.Print("This flight can not take off.  Please give us a command.")
 	}
 
-	enable(set.hosts)
+	err := enable(set.hosts)
+	if err != nil {
+		return
+	}
 	fmt.Printf("%s\n", set.desc)
 
 	// TODO detect if this is macOS or not
